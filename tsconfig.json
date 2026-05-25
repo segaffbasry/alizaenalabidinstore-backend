@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "lib": ["ES2021"],
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "outDir": ".medusa/server",
+    "rootDir": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "medusa-config.ts"],
+  "exclude": ["node_modules", ".medusa"]
+}
