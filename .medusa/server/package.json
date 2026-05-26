@@ -1,0 +1,24 @@
+{
+  "name": "alizaenalabidinstore-backend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "medusa develop",
+    "build": "medusa build",
+    "start": "medusa db:migrate && medusa start",
+    "db:migrate": "medusa db:migrate",
+    "seed": "medusa exec src/scripts/seed.ts"
+  },
+  "dependencies": {
+    "@medusajs/admin-sdk": "^2.15.2",
+    "@medusajs/framework": "^2.15.2",
+    "@medusajs/medusa": "^2.15.2",
+    "axios": "^1.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5"
+  }
+}
