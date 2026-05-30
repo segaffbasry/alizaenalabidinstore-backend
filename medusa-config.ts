@@ -14,10 +14,25 @@ module.exports = defineConfig({
     },
   },
   admin: {
-    backendUrl: process.env.MEDUSA_BACKEND_URL || "http://localhost:9000",
+    backendUrl: process.env.MEDUSA_BACKEND_URL || "https://alizaenalabidinstore-backend-production.up.railway.app",
     disable: process.env.DISABLE_MEDUSA_ADMIN === "true",
   },
   modules: [
+    {
+      resolve: "@medusajs/medusa/file",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/medusa/file-local",
+            id: "local",
+            options: {
+              upload_dir: "static",
+              backend_url: `${process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"}/static`,
+            },
+          },
+        ],
+      },
+    },
     {
       resolve: "@medusajs/medusa/payment",
       options: {
