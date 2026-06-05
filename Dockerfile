@@ -12,7 +12,14 @@ WORKDIR /app/.medusa/server
 
 # Install ONLY production dependencies, exactly once, using the committed lockfile
 COPY .medusa/server/package.json .medusa/server/package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# --loglevel=http makes progress visible in Railway build logs (the previous
+# failure stalled for 20 min with zero output). --no-audit/--no-fund drop extra
+# registry round-trips; fetch timeouts make a stalled connection fail fast and
+# retry instead of hanging until Railway kills the build.
+RUN npm ci --omit=dev --no-audit --no-fund --loglevel=http \
+      --fetch-retries=5 --fetch-retry-mintimeout=2000 \
+      --fetch-retry-maxtimeout=30000 --fetch-timeout=120000 \
+    && npm cache clean --force
 
 # Copy the pre-built server (compiled medusa-config.js, compiled src, public/admin)
 COPY .medusa/server/ ./
