@@ -1,0 +1,18 @@
+# Keep the build context tiny and the image lean.
+# Only .medusa/server is needed to run the pre-built Medusa server.
+
+**/node_modules
+.git
+.gitignore
+.env
+.env.*
+*.log
+
+# Source TS and dev config are already compiled into .medusa/server
+src
+tsconfig.json
+medusa-config.ts
+
+# Other .medusa outputs not needed at runtime
+.medusa/client
+.medusa/types
