@@ -1,0 +1,126 @@
+# Medusa v2 production stack for Coolify (docker-compose deployment type).
+# Four services, one network. server + worker run the SAME image with
+# different MEDUSA_WORKER_MODE. Coolify's proxy routes the public domain
+# to medusa-server:9000 — no host ports are published here.
+#
+# All ${VARS} are injected by Coolify's environment/secret store.
+# MEDUSA_BACKEND_URL must ALSO be set as a *build* variable in Coolify
+# (the admin SPA bakes it in at build time).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medusa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-medusa}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-medusa} -d $${POSTGRES_DB:-medusa}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - medusa
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # noeviction (redis default) is REQUIRED: the event bus / workflow engine
+    # use BullMQ; an eviction policy like allkeys-lru can silently drop jobs.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - medusa
+
+  medusa-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MEDUSA_BACKEND_URL: ${MEDUSA_BACKEND_URL}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      MEDUSA_WORKER_MODE: server
+      DISABLE_MEDUSA_ADMIN: "false"
+      PORT: "9000"
+      DATABASE_URL: postgres://${POSTGRES_USER:-medusa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-medusa}
+      REDIS_URL: redis://redis:6379
+      MEDUSA_BACKEND_URL: ${MEDUSA_BACKEND_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      STORE_CORS: ${STORE_CORS}
+      ADMIN_CORS: ${ADMIN_CORS}
+      AUTH_CORS: ${AUTH_CORS}
+      MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY}
+      MIDTRANS_CLIENT_KEY: ${MIDTRANS_CLIENT_KEY}
+      MIDTRANS_IS_PRODUCTION: ${MIDTRANS_IS_PRODUCTION:-false}
+    volumes:
+      - medusa_uploads:/app/static
+    expose:
+      - "9000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:9000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - medusa
+
+  medusa-worker:
+    # Same image as medusa-server; compose builds once and reuses it.
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MEDUSA_BACKEND_URL: ${MEDUSA_BACKEND_URL}
+    restart: unless-stopped
+    # No `medusa db:migrate` here — the server owns migrations.
+    command: ["npx", "medusa", "start"]
+    depends_on:
+      medusa-server:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      MEDUSA_WORKER_MODE: worker
+      DISABLE_MEDUSA_ADMIN: "true"
+      PORT: "9000"
+      DATABASE_URL: postgres://${POSTGRES_USER:-medusa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-medusa}
+      REDIS_URL: redis://redis:6379
+      MEDUSA_BACKEND_URL: ${MEDUSA_BACKEND_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      STORE_CORS: ${STORE_CORS}
+      ADMIN_CORS: ${ADMIN_CORS}
+      AUTH_CORS: ${AUTH_CORS}
+      MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY}
+      MIDTRANS_CLIENT_KEY: ${MIDTRANS_CLIENT_KEY}
+      MIDTRANS_IS_PRODUCTION: ${MIDTRANS_IS_PRODUCTION:-false}
+    volumes:
+      - medusa_uploads:/app/static
+    networks:
+      - medusa
+
+volumes:
+  postgres_data:
+  redis_data:
+  medusa_uploads:
+
+networks:
+  medusa:
+    driver: bridge

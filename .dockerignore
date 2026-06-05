@@ -1,18 +1,26 @@
-# Keep the build context tiny and the image lean.
-# Only .medusa/server is needed to run the pre-built Medusa server.
+# Build context for the new build-on-server Dockerfile.
+# src/, tsconfig.json, and medusa-config.ts MUST be included — `medusa build`
+# runs inside the image now (unlike the old pre-built-artifact strategy).
 
+node_modules
 **/node_modules
+
+# Build output is produced inside the image, never copied in
+.medusa
+
+# Never ship secrets or VCS history into the build context
 .git
 .gitignore
 .env
 .env.*
+!.env.example
+
+# Runtime/user data
+static
+uploads
 *.log
 
-# Source TS and dev config are already compiled into .medusa/server
-src
-tsconfig.json
-medusa-config.ts
-
-# Other .medusa outputs not needed at runtime
-.medusa/client
-.medusa/types
+# Not needed inside the image
+docker-compose.yml
+DEPLOY.md
+README.md
