@@ -5,6 +5,7 @@ import {
   createOrderPaymentCollectionWorkflow,
   markPaymentCollectionAsPaid,
 } from "@medusajs/medusa/core-flows";
+import { maybeSendAudiobookEmail } from "../../../lib/audiobook-email";
 
 /**
  * Records an order in Medusa for a checkout that was paid directly through
@@ -225,6 +226,15 @@ export async function POST(
       `record-order: order ${order.id} created but marking payment failed: ${(err as Error).message}`
     );
   }
+
+  // ── 7. Digital delivery: audiobook access email (fire-and-forget) ──
+  void maybeSendAudiobookEmail({
+    scope: req.scope,
+    items,
+    email: customer.email,
+    firstName: customer.first_name,
+    orderId: order.id,
+  });
 
   logger.info(`record-order: recorded order ${order.id} for Midtrans ${midtransOrderId}`);
   res.json({ order_id: order.id, display_id: order.display_id });
