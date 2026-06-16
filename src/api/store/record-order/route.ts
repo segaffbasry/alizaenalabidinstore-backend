@@ -6,6 +6,7 @@ import {
   markPaymentCollectionAsPaid,
 } from "@medusajs/medusa/core-flows";
 import { maybeSendAudiobookEmail } from "../../../lib/audiobook-email";
+import { maybeSendAdminOrderEmail } from "../../../lib/admin-order-email";
 
 /**
  * Records an order in Medusa for a checkout that was paid directly through
@@ -56,7 +57,24 @@ interface MidtransStatus {
   fraud_status?: string;
   gross_amount: string;
   status_code?: string;
+  payment_type?: string;
 }
+
+// Friendly Indonesian labels for Midtrans payment_type values.
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  credit_card: "Kartu Kredit",
+  bank_transfer: "Transfer Bank",
+  echannel: "Mandiri Bill",
+  permata: "Permata VA",
+  bca_va: "BCA Virtual Account",
+  bni_va: "BNI Virtual Account",
+  bri_va: "BRI Virtual Account",
+  gopay: "GoPay",
+  shopeepay: "ShopeePay",
+  qris: "QRIS",
+  cstore: "Gerai Retail",
+  akulaku: "Akulaku",
+};
 
 export async function POST(
   req: MedusaStoreRequest<RecordOrderBody>,
@@ -234,6 +252,19 @@ export async function POST(
     email: customer.email,
     firstName: customer.first_name,
     orderId: order.id,
+  });
+
+  // ── 8. Admin notification email (fire-and-forget) ──
+  const paymentMethod = status.payment_type
+    ? PAYMENT_METHOD_LABELS[status.payment_type] ?? status.payment_type
+    : undefined;
+  void maybeSendAdminOrderEmail({
+    scope: req.scope,
+    items,
+    customer,
+    orderNumber: String(order.display_id ?? order.id),
+    total: orderTotal,
+    paymentMethod,
   });
 
   logger.info(`record-order: recorded order ${order.id} for Midtrans ${midtransOrderId}`);
