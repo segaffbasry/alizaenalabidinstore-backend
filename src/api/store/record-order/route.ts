@@ -258,6 +258,7 @@ export async function POST(
   const paymentMethod = status.payment_type
     ? PAYMENT_METHOD_LABELS[status.payment_type] ?? status.payment_type
     : undefined;
+  logger.info(`record-order: admin-notify dispatch v2 for order ${order.id}`);
   void maybeSendAdminOrderEmail({
     scope: req.scope,
     items,
